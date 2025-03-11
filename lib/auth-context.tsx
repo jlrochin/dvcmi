@@ -1,119 +1,145 @@
 "use client"
 
-import type React from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { supabase } from "./supabase"
-
-// Modificar el tipo User para incluir username
-type User = {
+// Definir la estructura del usuario
+export interface User {
   id: string
+  name: string
   email: string
-  username: string
   role: string
-  name?: string
+  avatar: string
 }
 
-type AuthContextType = {
+// Definir la estructura del contexto de autenticación
+interface AuthContextType {
   user: User | null
-  loading: boolean
-  signIn: (username: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
+  login: (username: string, password: string) => Promise<boolean>
+  logout: () => void
+  isLoading: boolean
 }
 
+// Crear el contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+// Proveedor del contexto
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Actualizar la función que obtiene los datos del usuario para incluir username
+  // Verificar si hay un usuario en localStorage al cargar
   useEffect(() => {
-    // Verificar sesión actual
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (session) {
-        // Obtener datos del usuario desde la tabla users
-        const { data } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-
-        if (data) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "",
-            username: data.username || "",
-            role: data.role,
-            name: data.name,
-          })
-        }
-      }
-
-      setLoading(false)
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      setUser(JSON.parse(storedUser))
     }
-
-    checkSession()
-
-    // Suscribirse a cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        // Obtener datos del usuario desde la tabla users
-        const { data } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-
-        if (data) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "",
-            username: data.username || "",
-            role: data.role,
-            name: data.name,
-          })
-        }
-      } else {
-        setUser(null)
-      }
-
-      setLoading(false)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
+    setIsLoading(false)
   }, [])
 
-  // Modificar la función signIn para usar username en lugar de email
-  const signIn = async (username: string, password: string) => {
-    // Primero obtenemos el email asociado al username
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("email")
-      .eq("username", username)
-      .single()
+  // Función de login simulada
+  const login = async (username: string, password: string): Promise<boolean> => {
+    setIsLoading(true)
 
-    if (userError || !userData) {
-      throw new Error("Usuario no encontrado")
+    // Simular una llamada a API
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Usuarios de prueba
+    const users = [
+      {
+        id: "1",
+        name: "Dr. García",
+        email: "garcia@hospital.com",
+        username: "garcia",
+        password: "password123",
+        role: "Médico",
+        avatar: "G",
+      },
+      {
+        id: "2",
+        name: "Dra. Martínez",
+        email: "martinez@hospital.com",
+        username: "martinez",
+        password: "password123",
+        role: "Farmacéutico",
+        avatar: "M",
+      },
+      {
+        id: "3",
+        name: "Enfermero López",
+        email: "lopez@hospital.com",
+        username: "lopez",
+        password: "password123",
+        role: "Enfermero",
+        avatar: "L",
+      },
+    ]
+
+    // Buscar por nombre de usuario o correo electrónico
+    const foundUser = users.find((u) => (u.username === username || u.email === username) && u.password === password)
+
+    if (foundUser) {
+      // Eliminar la contraseña antes de almacenar el usuario
+      const { password: _, username: __, ...userWithoutPassword } = foundUser
+      setUser(userWithoutPassword)
+
+      // Guardar en localStorage
+      localStorage.setItem("user", JSON.stringify(userWithoutPassword))
+
+      // Registrar actividad de inicio de sesión
+      const loginActivity = {
+        id: Date.now(),
+        type: "login",
+        user: {
+          name: userWithoutPassword.name,
+          avatar: userWithoutPassword.avatar,
+        },
+        action: "inició sesión",
+        timestamp: new Date().toISOString(),
+        details: `Inicio de sesión desde ${navigator.userAgent}`,
+      }
+
+      // Guardar actividad en localStorage
+      const activities = JSON.parse(localStorage.getItem("activities") || "[]")
+      localStorage.setItem("activities", JSON.stringify([loginActivity, ...activities]))
+
+      setIsLoading(false)
+      return true
     }
 
-    // Luego hacemos el login con el email
-    const { error } = await supabase.auth.signInWithPassword({
-      email: userData.email,
-      password,
-    })
-
-    if (error) throw error
+    setIsLoading(false)
+    return false
   }
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+  // Función de logout
+  const logout = () => {
+    // Registrar actividad de cierre de sesión
+    if (user) {
+      const logoutActivity = {
+        id: Date.now(),
+        type: "logout",
+        user: {
+          name: user.name,
+          avatar: user.avatar,
+        },
+        action: "cerró sesión",
+        timestamp: new Date().toISOString(),
+        details: `Cierre de sesión`,
+      }
+
+      // Guardar actividad en localStorage
+      const activities = JSON.parse(localStorage.getItem("activities") || "[]")
+      localStorage.setItem("activities", JSON.stringify([logoutActivity, ...activities]))
+    }
+
+    // Eliminar usuario de localStorage
+    localStorage.removeItem("user")
+    setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, signIn, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>
 }
 
+// Hook personalizado para usar el contexto
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
