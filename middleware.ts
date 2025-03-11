@@ -10,8 +10,12 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Si no hay sesión y la ruta no es /login, redirigir a /login
-  if (!session && !req.nextUrl.pathname.startsWith("/login")) {
+  // Lista de rutas públicas que no requieren autenticación
+  const publicRoutes = ["/login", "/auth-diagnostico", "/test-login"]
+  const isPublicRoute = publicRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+
+  // Si no hay sesión y la ruta no es pública, redirigir a /login
+  if (!session && !isPublicRoute) {
     const redirectUrl = new URL("/login", req.url)
     return NextResponse.redirect(redirectUrl)
   }
