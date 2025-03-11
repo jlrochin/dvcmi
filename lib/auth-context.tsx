@@ -5,9 +5,11 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "./supabase"
 
+// Modificar el tipo User para incluir username
 type User = {
   id: string
   email: string
+  username: string
   role: string
   name?: string
 }
@@ -15,7 +17,7 @@ type User = {
 type AuthContextType = {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (username: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Actualizar la función que obtiene los datos del usuario para incluir username
   useEffect(() => {
     // Verificar sesión actual
     const checkSession = async () => {
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({
             id: session.user.id,
             email: session.user.email || "",
+            username: data.username || "",
             role: data.role,
             name: data.name,
           })
@@ -63,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({
             id: session.user.id,
             email: session.user.email || "",
+            username: data.username || "",
             role: data.role,
             name: data.name,
           })
@@ -79,9 +84,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const signIn = async (email: string, password: string) => {
+  // Modificar la función signIn para usar username en lugar de email
+  const signIn = async (username: string, password: string) => {
+    // Primero obtenemos el email asociado al username
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("email")
+      .eq("username", username)
+      .single()
+
+    if (userError || !userData) {
+      throw new Error("Usuario no encontrado")
+    }
+
+    // Luego hacemos el login con el email
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: userData.email,
       password,
     })
 

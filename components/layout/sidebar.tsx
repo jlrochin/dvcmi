@@ -102,10 +102,10 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="border-t p-4">
           <div className="mb-2 flex items-center">
             <div className="h-8 w-8 rounded-full bg-primary text-center text-primary-foreground">
-              <span className="leading-8">{user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}</span>
+              <span className="leading-8">{user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}</span>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium">{user?.name || user?.email}</p>
+              <p className="text-sm font-medium">{user?.name || user?.username}</p>
               <p className="text-xs text-muted-foreground">{user?.role}</p>
             </div>
           </div>
